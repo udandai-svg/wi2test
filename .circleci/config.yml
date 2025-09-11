@@ -4,12 +4,13 @@ jobs:
     machine: true
     resource_class: network001/test001
     steps:
-      - add_ssh_keys
-          
-    fingerprints:
-        - "SHA256:xfRLHtQ9xrfDH5YiDgqH70aBa6o26LVvxCVmO+QUIOA"
+      - checkout
       
-        - run:
+      - add_ssh_keys:
+          fingerprints:
+            - "SHA256:xfRLHtQ9xrfDH5YiDgqH70aBa6o26LVvxCVmO+QUIOA"
+      
+      - run:
           name: Configure Cisco Hostname
           command: |
             set -euo pipefail
