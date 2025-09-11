@@ -8,11 +8,11 @@ resource_class: network001/test001
 steps:
 - checkout
 
-  - add_ssh_keys:
+- add_ssh_keys:
       fingerprints:
         - "SHA256:xfRLHtQ9xrfDH5YiDgqH70aBa6o26LVvxCVmO+QUIOA"
   
-  - run:
+- run:
       name: Configure Cisco Hostname
       command: |
         set -euo pipefail
