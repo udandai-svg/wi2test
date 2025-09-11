@@ -17,7 +17,7 @@ jobs:
             : "${CISCO_HOST:?CISCO_HOST is required}"
             mkdir -p ~/.ssh && chmod 700 ~/.ssh
             ssh-keyscan -T 10 -H "$CISCO_HOST" >> ~/.ssh/known_hosts
-            ssh -i ~/.ssh/id_rsa_cisco -o Ciphers=+aes256-cbc -tt -o StrictHostKeyChecking=yes -o BatchMode=yes cisco-admin@"$CISCO_HOST" \<<'EOS'
+            ssh -i /home/test/.ssh/id_rsa_cisco -o Ciphers=+aes256-cbc -tt -o StrictHostKeyChecking=yes -o BatchMode=yes cisco-admin@"$CISCO_HOST" \<<'EOS'
             terminal length 0
             configure terminal
             hostname GP-Router
