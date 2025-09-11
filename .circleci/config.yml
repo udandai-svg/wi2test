@@ -1,32 +1,31 @@
 version: 2.1
 
 jobs:
-config_cisco:
-machine:
-enabled: true
-resource_class: network001/test001
-steps:
-  - checkout
-
-  - add_ssh_keys:
-      fingerprints:
+  config_cisco:
+    machine: true
+    resource_class: network001/test001   # ←あなたのRCに合わせて
+    steps:
+      - checkout
+      
+      - add_ssh_keys:
+        fingerprints:
         - "SHA256:xfRLHtQ9xrfDH5YiDgqH70aBa6o26LVvxCVmO+QUIOA"
-  
-  - run:
-      name: Configure Cisco Hostname
-      command: |
-        set -euo pipefail
-        mkdir -p ~/.ssh && chmod 700 ~/.ssh
-        ssh-keyscan -T 10 -H "$CISCO_HOST" >> ~/.ssh/known_hosts
-        ssh -o StrictHostKeyChecking=yes -o BatchMode=yes \
-            admin@"$CISCO_HOST" "
-              configure terminal
-              hostname GP-Router
-              end
-              write memory
-            "
-
+      
+      - run:
+        name: Configure Cisco Hostname
+        command: |
+            set -euo pipefail
+            : "${CISCO_HOST:?CISCO_HOST is required}"   # 未設定なら即失敗で気づける
+            mkdir -p ~/.ssh && chmod 700 ~/.ssh
+            ssh-keyscan -T 10 -H "$CISCO_HOST" >> ~/.ssh/known_hosts
+            ssh -tt -o StrictHostKeyChecking=yes -o BatchMode=yes admin@"$CISCO_HOST" <<'EOS'
+            terminal length 0
+            configure terminal
+            hostname GP-Router
+            end
+            write memory
+            EOS
 workflows:
-config:
-jobs:
-- config_cisco
+  config:
+    jobs:
+      - config_cisco
