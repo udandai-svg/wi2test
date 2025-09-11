@@ -1,21 +1,17 @@
 version: 2.1
-
 jobs:
   config_cisco:
     machine: true
-    resource_class: network001/test001   # ←あなたのRCに合わせて
+    resource_class: network-test/circleci-test
     steps:
-      - checkout
-      
       - add_ssh_keys:
-        fingerprints:
-        - "SHA256:xfRLHtQ9xrfDH5YiDgqH70aBa6o26LVvxCVmO+QUIOA"
-      
+          fingerprints:
+            - "SHA256:xfRLHtQ9xrfDH5YiDgqH70aBa6o26LVvxCVmO+QUIOA"
       - run:
-        name: Configure Cisco Hostname
-        command: |
+          name: Configure Cisco Hostname
+          command: |
             set -euo pipefail
-            : "${CISCO_HOST:?CISCO_HOST is required}"   # 未設定なら即失敗で気づける
+            : "${CISCO_HOST:?CISCO_HOST is required}"
             mkdir -p ~/.ssh && chmod 700 ~/.ssh
             ssh-keyscan -T 10 -H "$CISCO_HOST" >> ~/.ssh/known_hosts
             ssh -tt -o StrictHostKeyChecking=yes -o BatchMode=yes admin@"$CISCO_HOST" <<'EOS'
