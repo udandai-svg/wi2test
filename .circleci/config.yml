@@ -2,19 +2,21 @@ version: 2.1
 jobs:
   config_cisco:
     machine: true
-    resource_class: network-test/circleci-test
+    resource_class: network001/test001
     steps:
-      - add_ssh_keys:
-          fingerprints:
-            - "SHA256:xfRLHtQ9xrfDH5YiDgqH70aBa6o26LVvxCVmO+QUIOA"
-      - run:
+      - add_ssh_keys
+          
+    fingerprints:
+        - "SHA256:xfRLHtQ9xrfDH5YiDgqH70aBa6o26LVvxCVmO+QUIOA"
+      
+        - run:
           name: Configure Cisco Hostname
           command: |
             set -euo pipefail
             : "${CISCO_HOST:?CISCO_HOST is required}"
             mkdir -p ~/.ssh && chmod 700 ~/.ssh
             ssh-keyscan -T 10 -H "$CISCO_HOST" >> ~/.ssh/known_hosts
-            ssh -tt -o StrictHostKeyChecking=yes -o BatchMode=yes admin@"$CISCO_HOST" <<'EOS'
+            ssh -tt -o StrictHostKeyChecking=yes -o BatchMode=yes admin@"$CISCO_HOST" \<<'EOS'
             terminal length 0
             configure terminal
             hostname GP-Router
