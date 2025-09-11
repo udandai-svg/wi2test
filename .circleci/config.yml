@@ -4,13 +4,13 @@ jobs:
   mkdir_on_centos:
     machine:
       enabled: true
-    resource_class: network-test001/wi2test
+    resource_class: udandai-svg/wi2test
     steps:
       - checkout
 
       - add_ssh_keys:
           fingerprints:
-            - "SHA256:MuouO6s9lFVws2hj0wnCip6e9RzWQR3ili1OzTCShPw"
+            - "SHA256:S50sf0kpBGIIAvYaU48X07/Sl6+61J2hnrMbg3dibNY"
 
       - run:
           name: Add CentOS host key safely
