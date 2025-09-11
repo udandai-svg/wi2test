@@ -4,7 +4,7 @@ jobs:
   mkdir_on_centos:
     machine:
       enabled: true
-    resource_class: udandai-svg/wi2test
+    resource_class: network001/test001
     steps:
       - checkout
 
