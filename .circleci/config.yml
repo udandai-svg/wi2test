@@ -18,7 +18,7 @@ jobs:
 
             # SSH鍵を一時ファイルに書き込み、パーミッションを設定
             mkdir -p ~/.ssh && chmod 700 ~/.ssh
-            cat <<'EOT' > ~/.ssh/id_rsa_cisco
+            cat \<<'EOT' > ~/.ssh/id_rsa_cisco
             -----BEGIN OPENSSH PRIVATE KEY-----
             MIICXQIBAAKBgQDR0nbIBkWW3jDvyxSp8WmltnQaYkWn0URcdi3kYNwqvsMb2H4k
             7Lthi0Mc+708lNuhjYRz1farPujDDsiL0Klo7X/DKLjCDxsCE2g0aCb06yPE9DdS
