@@ -1,34 +1,64 @@
 version: 2.1
+
 jobs:
   config_cisco:
     machine: true
     resource_class: network001/test001
     steps:
       - checkout
-      
-      - add_ssh_keys:
-          fingerprints:
-            - "SHA256:xfRLHtQ9xrfDH5YiDgqH70aBa6o26LVvxCVmO+QUIOA"
-      
+
+      # （推奨）add_ssh_keysは使わず、環境変数で鍵を渡す
+      # プロジェクト設定 or コンテキストに以下を登録しておく：
+      #   CISCO_HOST            例: 192.0.2.10
+      #   CISCO_USER            例: cisco-admin
+      #   CISCO_SSH_KEY_B64     ※ ~/.ssh/id_rsa（秘密鍵ファイル）を base64 した文字列
+      #   （必要なら）CISCO_PORT 例: 22
+
+      - run:
+          name: Prepare SSH key
+          command: |
+            set -euo pipefail
+            : "${CISCO_HOST:?CISCO_HOST is required}"
+            : "${CISCO_USER:?CISCO_USER is required}"
+            : "${CISCO_SSH_KEY_B64:?CISCO_SSH_KEY_B64 is required}"
+            : "${CISCO_PORT:=22}"
+
+            mkdir -p ~/.ssh && chmod 700 ~/.ssh
+
+            # 環境変数から秘密鍵を復元（CRLF除去して保存）
+            echo "$CISCO_SSH_KEY_B64" | base64 -d | tr -d '\r' > ~/.ssh/id_rsa_cisco
+            chmod 600 ~/.ssh/id_rsa_cisco
+
+            # 鍵の妥当性チェック（ここで落ちたらフォーマット不正 or パスフレーズ付き）
+            ssh-keygen -y -f ~/.ssh/id_rsa_cisco > ~/.ssh/id_rsa_cisco.pub
+
+            # known_hosts 登録（失敗しても続行しない）
+            ssh-keyscan -p "$CISCO_PORT" -T 10 -H "$CISCO_HOST" >> ~/.ssh/known_hosts
+
       - run:
           name: Configure Cisco Hostname
           command: |
             set -euo pipefail
-            : "${CISCO_HOST:?CISCO_HOST is required}"
 
-            # SSH鍵を一時ファイルに書き込み、パーミッションを設定
-            mkdir -p ~/.ssh && chmod 700 ~/.ssh
-            cat \<<'EOT' > ~/.ssh/id_rsa_cisco
-            -----BEGIN RSA PRIVATE KEY-----MIICXQIBAAKBgQDR0nbIBkWW3jDvyxSp8WmltnQaYkWn0URcdi3kYNwqvsMb2H4k7Lthi0Mc+708lNuhjYRz1farPujDDsiL0Klo7X/DKLjCDxsCE2g0aCb06yPE9DdSyChNQAjkIFJCDlO1MYabR5QiS3aX8fJQ7gIzKGTjhXtCt2yhwdSnCRC2hwIDAQABAoGAe4EWycZnT9aZl4xCLYYcWZ572MvflFhplMM7YCJjdgWzcsCL/9AYu+HtLzI+wVodrYpPXJ+lAkeVWrto8GNyU2+3b3lj2knkG5dC4BPDb/9DPsPo8AL11sIJaMu/34c7j09Rc6K4UJh7DI19eHBWR5p+RPWOcefTLuFR6Ypy5QECQQD02pSXZYnRLRRO0eSl2qNtdQXyy1WiVvjwJgUs5Mobipy94aFN2JA8LEVOm89eQ1Eyx5icyaGDLB/XOJu7ZP3JAkEA21+jrcJdodr+C1AvHh7ZK8vaPw+xQZkYev6DEimLcDd6s8WpCeYgcRxrbXApjYY8a29tLgG+/8Pp8WZZ5pf5zwJBANM+ZSX8zxrtNnEN+qLwb0C2zmv66yWEvX6KfrqNpKSAQNw89iowJbgURbMdD5n2n+4cb1kNR8/gWJQY3Zqd9akCQFMe6eXsv42UbK3cs/21spPlqcw7Je61E5GG3iMDmtHqM5PqUSJvD9vL6OiOlzAIrNwIXFYSU0yV7w6IuYemDgECQQDr+Fx6MIxBiBZ2GM7C33gyWYsmLfY6z5Isrqv4xMXeXt7jYOsw2jZwA0uyVPl6d2UbCMRpS8JRS4HZqxyFNmhB-----END RSA PRIVATE KEY-----
+            # 古いCisco向けに"ssh-rsa"や旧アルゴリズムを許可
+            # 必要に応じて段階的に緩めてください
+            SSH_OPTS="-p ${CISCO_PORT} -i ~/.ssh/id_rsa_cisco \
+              -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=yes \
+              -o BatchMode=yes \
+              -o PubkeyAcceptedKeyTypes=+ssh-rsa \
+              -o HostkeyAlgorithms=+ssh-rsa \
+              -o KexAlgorithms=+diffie-hellman-group14-sha1 \
+              -o Ciphers=+aes256-cbc"
 
-            EOT
-            chmod 600 ~/.ssh/id_rsa_cisco
+            # まずは疎通チェック（詳細ログ）
+            ssh -vvv $SSH_OPTS "${CISCO_USER}@${CISCO_HOST}" "show clock" || {
+              echo "SSH login failed. Check key format/passphrase and Cisco pubkey registration."
+              exit 1
+            }
 
-            # SSHホストの鍵を known_hosts に追加
-            ssh-keyscan -T 10 -H "$CISCO_HOST" >> ~/.ssh/known_hosts
-
-            # SSH接続とコマンド実行
-            ssh -i ~/.ssh/id_rsa_cisco -o Ciphers=+aes256-cbc -tt -o StrictHostKeyChecking=no -o BatchMode=yes cisco-admin@"$CISCO_HOST" \<<'EOS'
+            # 実運用コマンド
+            ssh -tt $SSH_OPTS "${CISCO_USER}@${CISCO_HOST}" <<'EOS'
             terminal length 0
             configure terminal
             hostname GP-Router
@@ -39,5 +69,4 @@ jobs:
 workflows:
   config:
     jobs:
-      - config_cisco #20250925
-
+      - config_cisco #202509251203
