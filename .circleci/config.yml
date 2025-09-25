@@ -58,7 +58,7 @@ jobs:
             }
 
             # 実運用コマンド
-            ssh -tt $SSH_OPTS "${CISCO_USER}@${CISCO_HOST}" <<'EOS'
+            ssh -tt $SSH_OPTS "${CISCO_USER}@${CISCO_HOST}" \<<'EOS'
             terminal length 0
             configure terminal
             hostname GP-Router
