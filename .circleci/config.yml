@@ -15,18 +15,33 @@ jobs:
           command: |
             set -euo pipefail
             : "${CISCO_HOST:?CISCO_HOST is required}"
-            : "${SSH_KEY_FOR_CISCO:?SSH_KEY_FOR_CISCO is required}"
 
             # SSH鍵を一時ファイルに書き込み、パーミッションを設定
             mkdir -p ~/.ssh && chmod 700 ~/.ssh
-            echo "$SSH_KEY_FOR_CISCO" > ~/.ssh/id_rsa_cisco
+            cat <<'EOT' > ~/.ssh/id_rsa_cisco
+            -----BEGIN OPENSSH PRIVATE KEY-----
+            MIICXQIBAAKBgQDR0nbIBkWW3jDvyxSp8WmltnQaYkWn0URcdi3kYNwqvsMb2H4k
+            7Lthi0Mc+708lNuhjYRz1farPujDDsiL0Klo7X/DKLjCDxsCE2g0aCb06yPE9DdS
+            yChNQAjkIFJCDlO1MYabR5QiS3aX8fJQ7gIzKGTjhXtCt2yhwdSnCRC2hwIDAQAB
+            AoGAe4EWycZnT9aZl4xCLYYcWZ572MvflFhplMM7YCJjdgWzcsCL/9AYu+HtLzI+
+            wVodrYpPXJ+lAkeVWrto8GNyU2+3b3lj2knkG5dC4BPDb/9DPsPo8AL11sIJaMu/
+            34c7j09Rc6K4UJh7DI19eHBWR5p+RPWOcefTLuFR6Ypy5QECQQD02pSXZYnRLRRO
+            0eSl2qNtdQXyy1WiVvjwJgUs5Mobipy94aFN2JA8LEVOm89eQ1Eyx5icyaGDLB/X
+            OJu7ZP3JAkEA21+jrcJdodr+C1AvHh7ZK8vaPw+xQZkYev6DEimLcDd6s8WpCeYg
+            cRxrbXApjYY8a29tLgG+/8Pp8WZZ5pf5zwJBANM+ZSX8zxrtNnEN+qLwb0C2zmv6
+            6yWEvX6KfrqNpKSAQNw89iowJbgURbMdD5n2n+4cb1kNR8/gWJQY3Zqd9akCQFMe
+            6eXsv42UbK3cs/21spPlqcw7Je61E5GG3iMDmtHqM5PqUSJvD9vL6OiOlzAIrNwI
+            XFYSU0yV7w6IuYemDgECQQDr+Fx6MIxBiBZ2GM7C33gyWYsmLfY6z5Isrqv4xMXe
+            Xt7jYOsw2jZwA0uyVPl6d2UbCMRpS8JRS4HZqxyFNmhB
+            -----END OPENSSH PRIVATE KEY-----
+            EOT
             chmod 600 ~/.ssh/id_rsa_cisco
 
             # SSHホストの鍵を known_hosts に追加
             ssh-keyscan -T 10 -H "$CISCO_HOST" >> ~/.ssh/known_hosts
 
             # SSH接続とコマンド実行
-            ssh -i ~/.ssh/id_rsa_cisco -o Ciphers=+aes256-cbc -tt -o StrictHostKeyChecking=yes -o BatchMode=yes cisco-admin@"$CISCO_HOST" \<<'EOS'
+            ssh -i ~/.ssh/id_rsa_cisco -o Ciphers=+aes256-cbc -tt -o StrictHostKeyChecking=no -o BatchMode=yes cisco-admin@"$CISCO_HOST" \<<'EOS'
             terminal length 0
             configure terminal
             hostname GP-Router
@@ -38,3 +53,4 @@ workflows:
   config:
     jobs:
       - config_cisco #20250925
+
