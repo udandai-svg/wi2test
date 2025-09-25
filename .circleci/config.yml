@@ -26,7 +26,7 @@ jobs:
             ssh-keyscan -T 10 -H "$CISCO_HOST" >> ~/.ssh/known_hosts
 
             # SSH接続とコマンド実行
-            ssh -i ~/.ssh/id_rsa_cisco -o Ciphers=+aes256-cbc -tt -o StrictHostKeyChecking=yes -o BatchMode=yes cisco-admin@"$CISCO_HOST" <<'EOS'
+            ssh -i ~/.ssh/id_rsa_cisco -o Ciphers=+aes256-cbc -tt -o StrictHostKeyChecking=yes -o BatchMode=yes cisco-admin@"$CISCO_HOST" \<<'EOS'
             terminal length 0
             configure terminal
             hostname GP-Router
