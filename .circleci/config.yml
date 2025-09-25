@@ -11,19 +11,29 @@ jobs:
             - "SHA256:xfRLHtQ9xrfDH5YiDgqH70aBa6o26LVvxCVmO+QUIOA"
       
       - run:
-          name: Configure Cisco Hostname
-          command: |
-            set -euo pipefail
-            : "${CISCO_HOST:?CISCO_HOST is required}"
-            mkdir -p ~/.ssh && chmod 700 ~/.ssh
-            ssh-keyscan -T 10 -H "$CISCO_HOST" >> ~/.ssh/known_hosts
-            ssh -i /home/test/.ssh/id_rsa_cisco -o Ciphers=+aes256-cbc -tt -o StrictHostKeyChecking=yes -o BatchMode=yes cisco-admin@"$CISCO_HOST" \<<'EOS'
-            terminal length 0
-            configure terminal
-            hostname GP-Router
-            end
-            write memory
-            EOS
+        name: Configure Cisco Hostname
+    command: |
+      set -euo pipefail
+      : "${CISCO_HOST:?CISCO_HOST is required}"
+      : "${SSH_KEY_FOR_CISCO:?SSH_KEY_FOR_CISCO is required}"
+
+      # SSH鍵を一時ファイルに書き込み、パーミッションを設定
+      mkdir -p ~/.ssh && chmod 700 ~/.ssh
+      echo "$SSH_KEY_FOR_CISCO" > ~/.ssh/id_rsa_cisco
+      chmod 600 ~/.ssh/id_rsa_cisco
+
+      # SSHホストの鍵を known_hosts に追加
+      ssh-keyscan -T 10 -H "$CISCO_HOST" >> ~/.ssh/known_hosts
+
+      # SSH接続とコマンド実行
+      ssh -i ~/.ssh/id_rsa_cisco -o Ciphers=+aes256-cbc -tt -o StrictHostKeyChecking=yes -o BatchMode=yes cisco-admin@"$CISCO_HOST" <<'EOS'
+      terminal length 0
+      configure terminal
+      hostname GP-Router
+      end
+      write memory
+      EOS
+
 workflows:
   config:
     jobs:
