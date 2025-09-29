@@ -5,68 +5,69 @@ jobs:
     machine: true
     resource_class: network001/test001
     steps:
-      - checkout
+      - add_ssh_keys:
+          fingerprints:
+            - "SHA256:S50sf0kpBGIIAvYaU48X07/Sl6+61J2hnrMbg3dibNY"
 
-      # （推奨）add_ssh_keysは使わず、環境変数で鍵を渡す
-      # プロジェクト設定 or コンテキストに以下を登録しておく：
-      #   CISCO_HOST            例: 192.0.2.10
-      #   CISCO_USER            例: cisco-admin
-      #   CISCO_SSH_KEY_B64     ※ ~/.ssh/id_rsa（秘密鍵ファイル）を base64 した文字列
-      #   （必要なら）CISCO_PORT 例: 22
-
+      # どの鍵がジョブに入っているか可視化
       - run:
-          name: Prepare SSH key
+          name: Show the key actually used
+          command: |
+            set -euxo pipefail
+            ssh-add -L || true
+            KEY="$(ls -1 ~/.ssh/id_rsa_* | head -n1 || true)"
+            echo "Using key: ${KEY:-<not found>}"
+            if [ -n "${KEY:-}" ]; then ssh-keygen -lf "$KEY"; fi
+
+      # 疎通スモークテスト（-vvv）
+      - run:
+          name: Smoke test (show clock with -vvv)
           command: |
             set -euo pipefail
             : "${CISCO_HOST:?CISCO_HOST is required}"
-            : "${CISCO_USER:?CISCO_USER is required}"
-            : "${CISCO_SSH_KEY_B64:?CISCO_SSH_KEY_B64 is required}"
-            : "${CISCO_PORT:=22}"
 
             mkdir -p ~/.ssh && chmod 700 ~/.ssh
+            touch ~/.ssh/known_hosts && chmod 600 ~/.ssh/known_hosts
+            ssh-keyscan -T 10 -H "$CISCO_HOST" >> ~/.ssh/known_hosts || true
 
-            # 環境変数から秘密鍵を復元（CRLF除去して保存）
-            echo "$CISCO_SSH_KEY_B64" | base64 -d | tr -d '\r' > ~/.ssh/id_rsa_cisco
-            chmod 600 ~/.ssh/id_rsa_cisco
+            KEY="$(ls -1 ~/.ssh/id_rsa_* | head -n1)"
+            echo "Using key: $KEY"
 
-            # 鍵の妥当性チェック（ここで落ちたらフォーマット不正 or パスフレーズ付き）
-            ssh-keygen -y -f ~/.ssh/id_rsa_cisco > ~/.ssh/id_rsa_cisco.pub
+            ssh -vvv \
+              -i "$KEY" \
+              -o IdentitiesOnly=yes \
+              -o BatchMode=yes \
+              -o StrictHostKeyChecking=accept-new \
+              -o PubkeyAcceptedKeyTypes=+ssh-rsa \
+              -o HostKeyAlgorithms=+ssh-rsa \
+              -o KexAlgorithms=+diffie-hellman-group14-sha1 \
+              -o Ciphers=+aes256-cbc \
+              admin1@"$CISCO_HOST" "show clock"
 
-            # known_hosts 登録（失敗しても続行しない）
-            ssh-keyscan -p "$CISCO_PORT" -T 10 -H "$CISCO_HOST" >> ~/.ssh/known_hosts
-
+      # ここまで通ったら設定反映
       - run:
           name: Configure Cisco Hostname
           command: |
             set -euo pipefail
-
-            # 古いCisco向けに"ssh-rsa"や旧アルゴリズムを許可
-            # 必要に応じて段階的に緩めてください
-            SSH_OPTS="-p ${CISCO_PORT} -i ~/.ssh/id_rsa_cisco \
+            KEY="$(ls -1 ~/.ssh/id_rsa_* | head -n1)"
+            { printf '%s\r\n' \
+              'terminal length 0' \
+              'configure terminal' \
+              'hostname GP-Router' \
+              'end' \
+              'write memory'; } |
+            ssh -tt \
+              -i "$KEY" \
               -o IdentitiesOnly=yes \
-              -o StrictHostKeyChecking=yes \
               -o BatchMode=yes \
+              -o StrictHostKeyChecking=accept-new \
               -o PubkeyAcceptedKeyTypes=+ssh-rsa \
-              -o HostkeyAlgorithms=+ssh-rsa \
+              -o HostKeyAlgorithms=+ssh-rsa \
               -o KexAlgorithms=+diffie-hellman-group14-sha1 \
-              -o Ciphers=+aes256-cbc"
-
-            # まずは疎通チェック（詳細ログ）
-            ssh -vvv $SSH_OPTS "${CISCO_USER}@${CISCO_HOST}" "show clock" || {
-              echo "SSH login failed. Check key format/passphrase and Cisco pubkey registration."
-              exit 1
-            }
-
-            # 実運用コマンド
-            ssh -tt $SSH_OPTS "${CISCO_USER}@${CISCO_HOST}" \<<'EOS'
-            terminal length 0
-            configure terminal
-            hostname GP-Router
-            end
-            write memory
-            EOS
+              -o Ciphers=+aes256-cbc \
+              admin1@"$CISCO_HOST"
 
 workflows:
   config:
     jobs:
-      - config_cisco #202509251238
+      - config_cisco
